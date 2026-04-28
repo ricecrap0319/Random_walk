@@ -1,6 +1,6 @@
 clear; clc; close all;
 
-% Parameters
+
 N = 100;              % number of monomers/steps
 numWalks = 100;       % number of walks for Rg distribution
 
@@ -16,11 +16,9 @@ ylabel('y');
 zlabel('z');
 title('3D Self-Avoiding Random Walk: Uncharged Polymer');
 
-% Calculate Rg for the example walk
+%Rg plot
 Rg_example = radiusOfGyration(walk);
 fprintf('Example polymer Rg = %.4f\n', Rg_example);
-
-% Simulate many walks and collect Rg values
 Rg_values = zeros(numWalks,1);
 
 for i = 1:numWalks
@@ -28,7 +26,7 @@ for i = 1:numWalks
     Rg_values(i) = radiusOfGyration(walk_i);
 end
 
-% Plot Rg distribution
+
 figure;
 histogram(Rg_values, 15);
 xlabel('Radius of Gyration R_g');
@@ -40,9 +38,8 @@ grid on;
 fprintf('Mean Rg = %.4f\n', mean(Rg_values));
 fprintf('Std Rg = %.4f\n', std(Rg_values));
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Function: 3D Self-Avoiding Random Walk
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%3D self-avoiding walk
 function walk = selfAvoidingWalk3D(N)
 
     directions = [
@@ -96,9 +93,8 @@ function walk = selfAvoidingWalk3D(N)
 
 end
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 % Function: Radius of Gyration
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function Rg = radiusOfGyration(walk)
 
     centerOfMass = mean(walk, 1);
