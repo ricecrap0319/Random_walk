@@ -1,8 +1,10 @@
 clear; clc; close all;
 
 N = 100;
+numWalks = 100;
 
 [walk, collisions, collisionCountPerStep] = randomWalk3D_withCollisionTracking(N);
+Rg_example = radiusOfGyration(walk);
 
 
 figure;
@@ -25,6 +27,45 @@ ylabel('Cumulative Collisions');
 
 title('Collision Growth Over Time');
 grid on;
+
+fprintf('Example polymer Rg = %.4f\n', Rg_example);
+
+Rg_values = zeros(numWalks,1);
+
+for i = 1:numWalks
+    walk_i = randomWalk3D(N);
+    Rg_values(i) = radiusOfGyration(walk_i);
+end
+
+figure;
+histogram(Rg_values, 15);
+xlabel('Radius of Gyration R_g');
+ylabel('Frequency');
+title('Distribution of Radius of Gyration for 100 Non-Self-Avoiding Walks');
+grid on;
+
+fprintf('Mean Rg = %.4f\n', mean(Rg_values));
+fprintf('Std Rg = %.4f\n', std(Rg_values));
+
+function walk = randomWalk3D(N)
+
+    directions = [
+         1  0  0;
+        -1  0  0;
+         0  1  0;
+         0 -1  0;
+         0  0  1;
+         0  0 -1
+    ];
+
+    walk = zeros(N+1,3);
+    walk(1,:) = [0 0 0];
+
+    for step = 1:N
+        dir = directions(randi(6),:);
+        walk(step+1,:) = walk(step,:) + dir;
+    end
+end
 
 function [walk, collisions, collisionCountPerStep] = randomWalk3D_withCollisionTracking(N)
 
@@ -62,4 +103,12 @@ function [walk, collisions, collisionCountPerStep] = randomWalk3D_withCollisionT
 
         walk(step+1,:) = new_pos;
     end
+end
+
+function Rg = radiusOfGyration(walk)
+
+    centerOfMass = mean(walk, 1);
+    squaredDistances = sum((walk - centerOfMass).^2, 2);
+    Rg = sqrt(mean(squaredDistances));
+
 end
