@@ -1,106 +1,177 @@
 clear; clc; close all;
 
+%% Parameters
+N_values = [20 40 60 80 100 150];
+numWalks = 100;
 
-N = 100;              % number of monomers/steps
-numWalks = 100;       % number of walks for Rg distribution
+mean_R = zeros(size(N_values));
+std_R  = zeros(size(N_values));
 
-% Generate and visualize one self-avoiding walk
-walk = selfAvoidingWalk3D(N);
+mean_Rg = zeros(size(N_values));
+std_Rg  = zeros(size(N_values));
+
+blue = [0 0 1];
+
+%% Run SAW simulations
+for nIndex = 1:length(N_values)
+
+    N = N_values(nIndex);
+
+    R_values = zeros(numWalks,1);
+    Rg_values = zeros(numWalks,1);
+
+    for i = 1:numWalks
+
+        walk = [];
+
+        while isempty(walk)
+            walk = selfAvoidingWalk3D(N);
+        end
+
+        R_values(i) = endToEndDistance(walk);
+        Rg_values(i) = radiusOfGyration(walk);
+    end
+
+    mean_R(nIndex) = mean(R_values);
+    std_R(nIndex)  = std(R_values);
+
+    mean_Rg(nIndex) = mean(Rg_values);
+    std_Rg(nIndex)  = std(Rg_values);
+
+    fprintf('N = %d completed\n', N);
+end
+
+%% Example 3D self-avoiding walk
+exampleWalk = selfAvoidingWalk3D(80);
 
 figure;
-plot3(walk(:,1), walk(:,2), walk(:,3), '-o', 'LineWidth', 1.5);
+plot3(exampleWalk(:,1), exampleWalk(:,2), exampleWalk(:,3), '-o', ...
+    'Color', blue, ...
+    'MarkerFaceColor', blue, ...
+    'LineWidth', 1.5);
+
 grid on;
 axis equal;
 xlabel('x');
 ylabel('y');
 zlabel('z');
-title('3D Self-Avoiding Random Walk: Uncharged Polymer');
+title('Example 3D Self-Avoiding Walk');
 
-%Rg plot
-Rg_example = radiusOfGyration(walk);
-fprintf('Example polymer Rg = %.4f\n', Rg_example);
-Rg_values = zeros(numWalks,1);
-
-for i = 1:numWalks
-    walk_i = selfAvoidingWalk3D(N);
-    Rg_values(i) = radiusOfGyration(walk_i);
-end
-
-
+%% Bar graph: End-to-End Distance
 figure;
-histogram(Rg_values, 15);
-xlabel('Radius of Gyration R_g');
-ylabel('Frequency');
-title('Distribution of Radius of Gyration for 100 Self-Avoiding Walks');
+
+b = bar(N_values, mean_R, 'FaceColor', blue);
+b.FaceAlpha = 0.6;
+hold on;
+
+errorbar(N_values, mean_R, std_R, ...
+    'k', ...
+    'LineStyle', 'none', ...
+    'LineWidth', 2, ...
+    'CapSize', 12);
+
+xlabel('Walk Length N');
+ylabel('End-to-End Distance R');
+title('SAW: Mean End-to-End Distance with Standard Deviation');
 grid on;
 
-% Summary statistics
-fprintf('Mean Rg = %.4f\n', mean(Rg_values));
-fprintf('Std Rg = %.4f\n', std(Rg_values));
+%% Bar graph: Radius of Gyration
+figure;
 
+b = bar(N_values, mean_Rg, 'FaceColor', blue);
+b.FaceAlpha = 0.6;
+hold on;
 
-%3D self-avoiding walk
+errorbar(N_values, mean_Rg, std_Rg, ...
+    'k', ...
+    'LineStyle', 'none', ...
+    'LineWidth', 2, ...
+    'CapSize', 12);
+
+xlabel('Walk Length N');
+ylabel('Radius of Gyration R_g');
+title('SAW: Mean Radius of Gyration with Standard Deviation');
+grid on;
+
+%% Log-log scaling plot
+figure;
+
+loglog(N_values, mean_R, '-o', ...
+    'Color', blue, ...
+    'LineWidth', 2);
+
+hold on;
+
+loglog(N_values, mean_Rg, '-s', ...
+    'Color', [1,0,0], ...
+    'LineWidth', 2);
+
+xlabel('Walk Length N');
+ylabel('Mean Size');
+title('SAW Scaling Behavior');
+legend('End-to-End Distance R', 'Radius of Gyration R_g');
+grid on;
+
+%% Scaling exponent
+p_R  = polyfit(log(N_values), log(mean_R), 1);
+p_Rg = polyfit(log(N_values), log(mean_Rg), 1);
+
+fprintf('\nEstimated scaling exponent for R: %.3f\n', p_R(1));
+fprintf('Estimated scaling exponent for Rg: %.3f\n', p_Rg(1));
+
+%% ---------------- FUNCTIONS ----------------
+
 function walk = selfAvoidingWalk3D(N)
 
     directions = [
-        1  0  0;
-       -1  0  0;
-        0  1  0;
-        0 -1  0;
-        0  0  1;
-        0  0 -1
+         1  0  0;
+        -1  0  0;
+         0  1  0;
+         0 -1  0;
+         0  0  1;
+         0  0 -1
     ];
 
-    maxAttempts = 1000;
+    walk = zeros(N+1,3);
+    walk(1,:) = [0 0 0];
 
-    for attempt = 1:maxAttempts
+    visited = containers.Map();
+    visited('0_0_0') = true;
 
-        walk = zeros(N,3);
-        occupied = containers.Map;
-        occupied("0,0,0") = true;
+    for step = 1:N
 
-        success = true;
+        current = walk(step,:);
+        order = randperm(6);
+        moved = false;
 
-        for step = 2:N
-            current = walk(step-1,:);
-            order = randperm(6);
-            moved = false;
+        for j = 1:6
 
-            for j = 1:6
-                newPos = current + directions(order(j),:);
-                key = sprintf('%d,%d,%d', newPos(1), newPos(2), newPos(3));
+            dir = directions(order(j),:);
+            new_pos = current + dir;
 
-                if ~isKey(occupied, key)
-                    walk(step,:) = newPos;
-                    occupied(key) = true;
-                    moved = true;
-                    break;
-                end
-            end
+            key = sprintf('%d_%d_%d', ...
+                new_pos(1), new_pos(2), new_pos(3));
 
-            if ~moved
-                success = false;
+            if ~isKey(visited, key)
+                walk(step+1,:) = new_pos;
+                visited(key) = true;
+                moved = true;
                 break;
             end
         end
 
-        if success
+        if ~moved
+            walk = [];
             return;
         end
     end
-
-    error('Failed to generate a self-avoiding walk. Try reducing N.');
-
 end
 
+function R = endToEndDistance(walk)
+    R = norm(walk(end,:) - walk(1,:));
+end
 
-% Function: Radius of Gyration
 function Rg = radiusOfGyration(walk)
-
-    centerOfMass = mean(walk, 1);
-
-    squaredDistances = sum((walk - centerOfMass).^2, 2);
-
-    Rg = sqrt(mean(squaredDistances));
-
+    r_cm = mean(walk,1);
+    Rg = sqrt(mean(sum((walk - r_cm).^2,2)));
 end
