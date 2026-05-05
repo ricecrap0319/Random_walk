@@ -10,6 +10,10 @@ std_R  = zeros(size(N_values));
 mean_Rg = zeros(size(N_values));
 std_Rg  = zeros(size(N_values));
 
+trap_counts = zeros(size(N_values));
+attempt_counts = zeros(size(N_values));
+trap_rates = zeros(size(N_values));
+
 blue = [0 0 1];
 
 %% Run SAW simulations
@@ -20,16 +24,24 @@ for nIndex = 1:length(N_values)
     R_values = zeros(numWalks,1);
     Rg_values = zeros(numWalks,1);
 
-    for i = 1:numWalks
+    successfulWalks = 0;
+    trappedAttempts = 0;
+    totalAttempts = 0;
 
-        walk = [];
+    while successfulWalks < numWalks
 
-        while isempty(walk)
-            walk = selfAvoidingWalk3D(N);
+        totalAttempts = totalAttempts + 1;
+
+        [walk, trapped] = selfAvoidingWalk3D(N);
+
+        if trapped
+            trappedAttempts = trappedAttempts + 1;
+        else
+            successfulWalks = successfulWalks + 1;
+
+            R_values(successfulWalks) = endToEndDistance(walk);
+            Rg_values(successfulWalks) = radiusOfGyration(walk);
         end
-
-        R_values(i) = endToEndDistance(walk);
-        Rg_values(i) = radiusOfGyration(walk);
     end
 
     mean_R(nIndex) = mean(R_values);
@@ -38,11 +50,23 @@ for nIndex = 1:length(N_values)
     mean_Rg(nIndex) = mean(Rg_values);
     std_Rg(nIndex)  = std(Rg_values);
 
+    trap_counts(nIndex) = trappedAttempts;
+    attempt_counts(nIndex) = totalAttempts;
+    trap_rates(nIndex) = trappedAttempts / totalAttempts;
+
     fprintf('N = %d completed\n', N);
+    fprintf('  Successful walks = %d\n', successfulWalks);
+    fprintf('  Trapped attempts = %d\n', trappedAttempts);
+    fprintf('  Total attempts   = %d\n', totalAttempts);
+    fprintf('  Trap rate        = %.3f\n\n', trap_rates(nIndex));
 end
 
 %% Example 3D self-avoiding walk
-exampleWalk = selfAvoidingWalk3D(80);
+[exampleWalk, trapped] = selfAvoidingWalk3D(80);
+
+while trapped
+    [exampleWalk, trapped] = selfAvoidingWalk3D(80);
+end
 
 figure;
 plot3(exampleWalk(:,1), exampleWalk(:,2), exampleWalk(:,3), '-o', ...
@@ -93,17 +117,40 @@ ylabel('Radius of Gyration R_g');
 title('SAW: Mean Radius of Gyration with Standard Deviation');
 grid on;
 
+%% Trap counts
+figure;
+
+bar(N_values, trap_counts, 'FaceColor', [0.8 0.2 0.2]);
+
+xlabel('Walk Length N');
+ylabel('Number of Trapped Attempts');
+title('Number of Trapped SAW Attempts');
+grid on;
+
+%% Trap rate
+figure;
+
+plot(N_values, trap_rates, '-o', ...
+    'LineWidth', 2, ...
+    'Color', [0.8 0.2 0.2], ...
+    'MarkerFaceColor', [0.8 0.2 0.2]);
+
+xlabel('Walk Length N');
+ylabel('Trap Rate');
+title('Trap Rate vs Walk Length');
+grid on;
+
 %% Log-log scaling plot
 figure;
 
 loglog(N_values, mean_R, '-o', ...
-    'Color', blue, ...
+    'Color', [1,0,0], ...
     'LineWidth', 2);
 
 hold on;
 
 loglog(N_values, mean_Rg, '-s', ...
-    'Color', [1,0,0], ...
+    'Color', blue, ...
     'LineWidth', 2);
 
 xlabel('Walk Length N');
@@ -119,9 +166,15 @@ p_Rg = polyfit(log(N_values), log(mean_Rg), 1);
 fprintf('\nEstimated scaling exponent for R: %.3f\n', p_R(1));
 fprintf('Estimated scaling exponent for Rg: %.3f\n', p_Rg(1));
 
+fprintf('\nTrap statistics:\n');
+for i = 1:length(N_values)
+    fprintf('N = %d: trapped = %d, attempts = %d, trap rate = %.3f\n', ...
+        N_values(i), trap_counts(i), attempt_counts(i), trap_rates(i));
+end
+
 %% ---------------- FUNCTIONS ----------------
 
-function walk = selfAvoidingWalk3D(N)
+function [walk, trapped] = selfAvoidingWalk3D(N)
 
     directions = [
          1  0  0;
@@ -137,6 +190,8 @@ function walk = selfAvoidingWalk3D(N)
 
     visited = containers.Map();
     visited('0_0_0') = true;
+
+    trapped = false;
 
     for step = 1:N
 
@@ -161,6 +216,7 @@ function walk = selfAvoidingWalk3D(N)
         end
 
         if ~moved
+            trapped = true;
             walk = [];
             return;
         end
